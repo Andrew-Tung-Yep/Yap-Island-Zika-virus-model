@@ -1,5 +1,5 @@
 extensions [gis]
-globals [yap areas poplist mos nbleedh Shg Ehg Ihg Rhg Smg Emg Img Shx Ehx Ihx Rhx Smx Emx Imx Shb Ehb Ihb Rhb Smb Emb Imb nIh Bh Bm pbleedm pbleedh mospop mosspread x y z popspread distm disth Ah Ch Am mosdeath]
+globals [SA areas poplist mos nbleedh Shg Ehg Ihg Rhg Smg Emg Img Shx Ehx Ihx Rhx Smx Emx Imx Shb Ehb Ihb Rhb Smb Emb Imb nIh Bh Bm pbleedm pbleedh mospop mosspread x y z popspread distm disth Ah Ch Am mosdeath mosbite]
 patches-own [landtype Sh Eh Ih Rh Sm Em Im hpop mpop area popc]
 breed [settlements settlement]
 
@@ -14,12 +14,9 @@ to rerun
   clear-patches
   clear-plot
   reset-ticks
-  set areas gis:load-dataset "Yap municipalities V4.asc"
-  set yap gis:load-dataset "Yap land v2.asc"
-  gis:apply-raster yap landtype
-  gis:apply-raster areas area
-  ask patches with [pxcor = 156] [set landtype 0
-    set area 0]
+  set yap gis:load-dataset "San Andreas FNF raster.asc"
+  gis:apply-raster SA landtype
+  ask patches [set area 1]
   set-pop ;populating patches with humans an mosquitos
   set-colour ;visualises various patch variables (for manual use)
   ask patches [if Sh >= 0 [set Shg Shg + Sh
@@ -58,8 +55,8 @@ to go
 end
 
 to set-perameters
-  set Bm random-float 0.5 ;chance of human sharing a patch with a single infected mosquito becoming infected
-  set Bh random-float 0.5 ;chance of mosquito sharing a patch with a single infected human becoming infected
+  set Bm random-float 0.5 ;chance of a bite causing m to h transmission
+  set Bh random-float 0.5 ;chance of a bite causing m to h transmission
   set mospop (random 96) + 12 ;mean poulation of mosquitos in urban builtup
   set mosspread (random-float 8) + 2 ;govens mpop in non urban patches
   set popspread (random 16) + 5 ;governs human population distribution
@@ -69,46 +66,43 @@ to set-perameters
   set disth (random-float 0.5) + 0.5 ;mean dispersion of human in 1 day
   set Am (random-float 0.167) + 0.083 ;reciprocal of mean mosquito uninfectious incubation period
   set mosdeath (random-float 0.251) + 0.09 ;reciprocal of mean mosquito lifelime
+  set mosbite (random-float 13) + 2 ;mean number of bites a mosquitos will make in a tick
 end
 
 to set-pop
-  ask patches [if area = 0 [set area 15]]
-  set poplist n-values 15 [0]
-  set poplist replace-item 14 poplist 1
-  foreach [1 2 3 7 8 9 11 12 13 14][ask patches[if area = ? [set poplist replace-item (? - 1) poplist ((item (? - 1) poplist) + 1)
-        set popc popc + 1
-        if member? landtype [3 5 12 13] [set poplist replace-item (? - 1) poplist ((item (? - 1) poplist) + popspread)
-          set popc popc + popspread]
-        if landtype = 13 [set poplist replace-item (? - 1) poplist ((item (? - 1) poplist) + popspread)
-          set popc popc + popspread]]]]
-  ask patches[set Sh poisson(popc * (item (area - 1) [270 1022 641 0 0 0 1192 2023 124 0 730 551 236 596 0]) / (item (area - 1) poplist)) ;list of yap municipality populations (from census)
-    if member? landtype [1 2 4 6 7 8 9 10 11 14] [set Sm round(mospop / (mosspread ^ 2))
+  set poplist 0
+  ask patches[if member? landtype [2 9 11] [set poplist poplist + 1
+        set popc popc + 1]
+    if member? landtype [9 11] [set poplist poplist + popspread
+      set popc popc + popspread]
+    if landtype = 11 [set poplist poplist + popspread
+      set popc popc + popspread]]
+  ask patches[set Sh poisson(popc * 67912 / poplist) ;census population of San Andreas
+      if member? landtype [2 9 11] [set Sm round(mospop / (mosspread ^ 2))
       set x x + 1]
-    if member? landtype [3 5 12] [set Sm round(mospop / mosspread)
+    if landtype = 9 [set Sm round(mospop / mosspread)
       set y y + 1]
-    if landtype = 13 [set Sm mospop
+    if landtype = 11 [set Sm mospop
       set z z + 1]
-    if area = 0 [set area 15
-    set Sm 0]
     set mpop Sm + Em + Im
     set hpop Sh + Eh + Ih + Rh]
-  ask patch 73 86 [set Ih 1]
+  ask patch 53 124 [set Ih 1]
 end
 
 to set-colour
-  let cmap position patches-show ["municipality" "vegetation" "infected-humans" "infected-mosquitoes" "humans" "mosquitoes" "suceptable-humans" "recovered-humans"]
-  ask patches [let clist (list area landtype Ih Im hpop mpop Sh Rh)
+  let cmap position patches-show ["vegetation" "infected-humans" "infected-mosquitoes" "humans" "mosquitoes" "suceptable-humans" "recovered-humans"]
+  ask patches [let clist (list landtype Ih Im hpop mpop Sh Rh)
     set pcolor item cmap clist]
 end
 
 to create-nodes
-  foreach n-values 17 [?] [let xc item ? [73 52 50 31 36 44 79 121 108 99 122 146 119 134 128 9 8]
-    let yc item ? [83 80 66 61 88 111 116 115 93 84 100 117 177 167 192 22 2]
+  foreach n-values 12 [?] [let xc item ? [48 58 32 37 52 51 47 23 23 37 32 20]
+    let yc item ? [131 121 110 97 92 78 63 86 57 38 21 7]
     ask patch xc yc [sprout 1
       set Sh Sh + 5]]
   ask turtles [set breed settlements]
-  foreach n-values 22 [?] [let S1 item ? [0 1 4 5 1 2 3 15 2 0 0 6 6 7 7 8 8 7 7 12 12 13]
-      let S2 item ? [1 4 5 6 2 3 15 16 15 6 5 7 8 8 10 10 9 11 12 13 14 14]
+  foreach n-values 17 [?] [let S1 item ? [0 0 1 1 2 3 3 3 3 4 5 6 7 8 8 9 10]
+      let S2 item ? [1 2 2 3 7 4 5 6 8 5 6 9 8 9 11 10 11]
       ask settlement S1 [create-link-with settlement S2]]
 end
 
@@ -129,10 +123,11 @@ end
 
 to infect
   set nIh 0
-  ask patches [if hpop > 0 [let expos binom (Sh) (Bh * Im)
+  ask patches [if hpop > 0 [let nobit mosbite / hpop
+        let expos binom (Sh) (1 - ((1 - Bh) ^ (nobit * Im)))
         let devel binom (Eh) (Ah)
         let recov binom (Ih) (Ch)
-        let exposm binom (Sm) (Bm * Ih)
+        let exposm binom (Sm) (1 - ((1 - (Bm * Ih / hpop)) ^ mosbite))
         let develm binom (Em) (Am)
         set Sh Sh - expos
         set Eh Eh + expos - devel
@@ -155,17 +150,17 @@ to mospawn
   let mosx round(x * mos / (x + mosspread * y + (mosspread ^ 2) * z))
   let mosy round(y * mosspread * mos / (x + mosspread * y + (mosspread ^ 2) * z))
   let mosz round(z * (mosspread ^ 2) * mos / (x + mosspread * y + (mosspread ^ 2) * z))
-  ask patches with [member? landtype [1 2 4 6 7 8 9 10 11 14]] [set Sm Sm + int(mos / (x + mosspread * y + (mosspread ^ 2) * z)) ;sparsely inhabited landtypes (eg secondary vegetation)
+  ask patches with [landtype = 2] [set Sm Sm + int(mos / (x + mosspread * y + (mosspread ^ 2) * z))
     set mosx mosx - int(mos / (x + mosspread * y + (mosspread ^ 2) * z))]
-  while [mosx > 0] [ ask one-of patches with [member? landtype [1 2 4 6 7 8 9 10 11 14]] [set Sm Sm + 1
+  while [mosx > 0] [ ask one-of patches with [landtype = 2] [set Sm Sm + 1
       set mosx mosx - 1]]
-  ask patches with [member? landtype [3 5 12]] [set Sm Sm + int(mos * mosspread / (x + mosspread * y + (mosspread ^ 2) * z)) ;landtypes 3, 5, 12 are medium inhabited (eg agroforest)
+  ask patches with [landtype = 9] [set Sm Sm + int(mos * mosspread / (x + mosspread * y + (mosspread ^ 2) * z))
     set mosy mosy - int(mos * mosspread / (x + mosspread * y + (mosspread ^ 2) * z))]
-  while [mosy > 0] [ ask one-of patches with [member? landtype [3 5 12]] [set Sm Sm + 1
+  while [mosy > 0] [ ask one-of patches with [landtype = 9] [set Sm Sm + 1
       set mosy mosy - 1]]
-  ask patches with [landtype = 13] [set Sm Sm + int(mos * (mosspread ^ 2) / (x + mosspread * y + (mosspread ^ 2) * z)) ;landtype 13 is urban builtup
+  ask patches with [landtype = 11] [set Sm Sm + int(mos * (mosspread ^ 2) / (x + mosspread * y + (mosspread ^ 2) * z))
     set mosz mosz - int(mos * (mosspread ^ 2) / (x + mosspread * y + (mosspread ^ 2) * z))]
-  while [mosz > 0] [ ask one-of patches with [landtype = 13] [set Sm Sm + 1
+  while [mosz > 0] [ ask one-of patches with [landtype = 11] [set Sm Sm + 1
       set mosz mosz - 1]]
   set mos 0
   ask patches [set mpop Sm + Em + Im
@@ -230,7 +225,7 @@ to nodebleed
 end
 
 to hbleed
-  ask patches [if (hpop > 0) and area < 15 [set Shb binom (Sh) (pbleedh)
+  ask patches [if (hpop > 0) and area != 12 [set Shb binom (Sh) (pbleedh)
       set Ehb binom (Eh) (pbleedh)
       set Ihb binom (Ih) (pbleedh)
       set Rhb binom (Rh) (pbleedh)
@@ -238,9 +233,9 @@ to hbleed
       let swap 0
       let a 0
       let pat 0
-      while [a = 0] [set pat patch-at-heading-and-distance (random 360) (random-exponential disth)
+      while [a = 0] [set pat patch-at-heading-and-distance (random 360) (random-exponential (disth))
         if pat != nobody and pat != self [set a 1]]
-      ask pat [if area < 15 and hpop >= nbleedh [let Shl n-values Sh [1]
+      ask pat [if area != 12 and hpop >= nbleedh [let Shl n-values Sh [1]
           let Ehl n-values Eh [2]
           let Ihl n-values Ih [3]
           let Rhl n-values Rh [4]
@@ -297,8 +292,8 @@ end
 GRAPHICS-WINDOW
 254
 15
-596
-504
+499
+361
 -1
 -1
 2.1013
@@ -312,9 +307,9 @@ GRAPHICS-WINDOW
 0
 1
 0
-157
+80
 0
-217
+149
 1
 1
 1
@@ -383,7 +378,7 @@ CHOOSER
 patches-show
 patches-show
 "municipality" "vegetation" "infected-humans" "infected-mosquitoes" "humans" "mosquitoes" "suceptable-humans" "recovered-humans"
-1
+3
 
 BUTTON
 24

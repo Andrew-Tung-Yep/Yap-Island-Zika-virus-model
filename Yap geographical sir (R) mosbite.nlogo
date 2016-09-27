@@ -1,5 +1,5 @@
 extensions [gis]
-globals [yap areas poplist mos nbleedh Shg Ehg Ihg Rhg Smg Emg Img Shx Ehx Ihx Rhx Smx Emx Imx Shb Ehb Ihb Rhb Smb Emb Imb nIh Bh Bm pbleedm pbleedh mospop mosspread x y z popspread distm disth Ah Ch Am mosdeath]
+globals [yap areas poplist mos nbleedh Shg Ehg Ihg Rhg Smg Emg Img Shx Ehx Ihx Rhx Smx Emx Imx Shb Ehb Ihb Rhb Smb Emb Imb nIh Bh Bm pbleedm pbleedh mospop mosspread mosbite x y z popspread distm disth Ah Ch Am mosdeath]
 patches-own [landtype Sh Eh Ih Rh Sm Em Im hpop mpop area popc]
 breed [settlements settlement]
 
@@ -58,8 +58,8 @@ to go
 end
 
 to set-perameters
-  set Bm random-float 0.5 ;chance of human sharing a patch with a single infected mosquito becoming infected
-  set Bh random-float 0.5 ;chance of mosquito sharing a patch with a single infected human becoming infected
+  set Bm random-float 0.5 ;chance of a bite causing m to h transmission
+  set Bh random-float 0.5 ;chance of a bite causing m to h transmission
   set mospop (random 96) + 12 ;mean poulation of mosquitos in urban builtup
   set mosspread (random-float 8) + 2 ;govens mpop in non urban patches
   set popspread (random 16) + 5 ;governs human population distribution
@@ -69,6 +69,7 @@ to set-perameters
   set disth (random-float 0.5) + 0.5 ;mean dispersion of human in 1 day
   set Am (random-float 0.167) + 0.083 ;reciprocal of mean mosquito uninfectious incubation period
   set mosdeath (random-float 0.251) + 0.09 ;reciprocal of mean mosquito lifelime
+  set mosbite (random-float 13) + 2 ;mean number of bites a mosquitos will make in a tick
 end
 
 to set-pop
@@ -129,10 +130,11 @@ end
 
 to infect
   set nIh 0
-  ask patches [if hpop > 0 [let expos binom (Sh) (Bh * Im)
+  ask patches [if hpop > 0 [let nobit mosbite / hpop
+        let expos binom (Sh) (1 - ((1 - Bh) ^ (nobit * Im)))
         let devel binom (Eh) (Ah)
         let recov binom (Ih) (Ch)
-        let exposm binom (Sm) (Bm * Ih)
+        let exposm binom (Sm) (1 - ((1 - (Bm * Ih / hpop)) ^ mosbite))
         let develm binom (Em) (Am)
         set Sh Sh - expos
         set Eh Eh + expos - devel
